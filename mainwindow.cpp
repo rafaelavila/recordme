@@ -5,6 +5,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include <QtSerialPort/QtSerialPort>
 #include "read_write.h"
+#include <QMessageBox>
 
 using namespace std;
 using namespace cv;
@@ -23,12 +24,9 @@ MainWindow::MainWindow(QWidget *parent) :
     this->setWindowTitle("Filma Eu!");
     this->showMaximized();
     saveRectification("rafael", 3 , 5, 3, 9, 10);
-
+    srand(time(NULL));
 
     const std::string videoStreamAddress = "http://admin:password@192.168.0.101:80/videostream.cgi?.mjpg";
-
-//    vcap.open(videoStreamAddress);
-//    vcap2.open(0);
 
     src.create(480, 640, CV_8UC4);
     src = imread("robokLogo.png", -1);
@@ -41,7 +39,6 @@ MainWindow::MainWindow(QWidget *parent) :
      save = true;
      view = false;
      cntVideos = 0;
-     srand(time(NULL));
 }
 
 MainWindow::~MainWindow()
@@ -51,18 +48,37 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_pushButtonPlay_clicked()
 {
-    ui->stackedWidget->setCurrentIndex(1);
-    ui->timeEdit->setTime(QTime(ui->spinBoxHora->value(), ui->spinBoxMin->value()));
-    ui->progressBar->setValue(0);
+    QMessageBox messageBox;
+    if(ui->spinBoxHora->value() || ui->spinBoxMin->value()){
 
-    QString pasta = "mkdir videos/" + ui->lineEditNome->text();
-    system(pasta.toUtf8());
+        if(!ui->lineEditNome->text().isEmpty()){
+            ui->stackedWidget->setCurrentIndex(1);
+            ui->timeEdit->setTime(QTime(ui->spinBoxHora->value(), ui->spinBoxMin->value()));
+            ui->progressBar->setValue(0);
+
+            QString pasta = "mkdir videos/" + ui->lineEditNome->text();
+            system(pasta.toUtf8());
 
 
-    if(connectPort("ttyUSB0"))
-        QObject::connect(&serialPort, SIGNAL(readyRead()), this, SLOT(read()));
+            if(connectPort("ttyUSB0"))
+                QObject::connect(&serialPort, SIGNAL(readyRead()), this, SLOT(read()));
+            else{
+                messageBox.critical(0,"Erro","Conexão falhou");
+                messageBox.setFixedSize(500,200);
+            }
 
-    video();
+            if( !video() ){
+                messageBox.critical(0,"Erro","Falha na captura de vídeo");
+                messageBox.setFixedSize(500,200);
+            }
+        }else{
+            messageBox.critical(0,"Erro","Nome inválido");
+            messageBox.setFixedSize(500,200);
+        }
+    }else{
+        messageBox.critical(0,"Erro","Tempo inválido");
+        messageBox.setFixedSize(500,200);
+    }
 }
 
 void MainWindow::checkTime(){
@@ -100,18 +116,18 @@ void MainWindow::checkTime(){
     }
 }
 
-void MainWindow::video(){
+bool MainWindow::video(){
     cnt = 0;
     cap = true;
     stopButton = false;
     char c;
-    const std::string videoStreamAddress = "1" ;   //http://admin:password@192.168.0.101:80/videostream.cgi?.mjpg";
-    vcap.open(1);
+    const std::string videoStreamAddress = "http://admin:password@192.168.0.101:80/videostream.cgi?.mjpg";
+    vcap.open(videoStreamAddress);
 
-    frame_width=   vcap.get(CV_CAP_PROP_FRAME_WIDTH);
-    frame_height= vcap.get(CV_CAP_PROP_FRAME_HEIGHT);
+    frame_width  =  vcap.get(CV_CAP_PROP_FRAME_WIDTH);
+    frame_height =  vcap.get(CV_CAP_PROP_FRAME_HEIGHT);
 
-    if(!vcap.isOpened()) cout << "erro" << endl;
+    if(!vcap.isOpened()) return false;
 
     tmedio = 0;
     double total = 0;
@@ -151,6 +167,7 @@ void MainWindow::video(){
         checkTime();
     }
     destroyAllWindows();
+    return true;
 }
 
 void MainWindow::on_pushButtonStop_clicked()

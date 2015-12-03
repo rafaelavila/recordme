@@ -54,7 +54,7 @@ private:
     int frame_width,frame_height;
     bool save;
 
-    void video();
+    bool video();
 
     bool connectPort(QString portName);
     void addSong(QString videoName);
